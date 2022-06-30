@@ -2,43 +2,53 @@ package main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/mattn/go-sqlite3"
 	"html/template"
 	"log"
+	"math"
 	"net/http"
+	"strconv"
 )
 
-type BanksPage struct {
-	InitialLoan float64
-	DownPayment float64
-	DesiredTerm float64
+type Data struct {
+	InitialLoan  float64
+	DownPayment  float64
+	DesiredTerm  float64
+	InterestRate float64
 }
 
-func (b *BanksPage) Loan(initialLoan float64) error {
-	if initialLoan > 1000000 {
-		return errors.New("The bank cannot provide such an amount")
-	}
-	b.InitialLoan = initialLoan
-	return nil
-}
+//
+//func (b *BanksPage) Loan(initialLoan float64) error {
+//	if initialLoan >= 1000000 {
+//		return errors.New("The bank cannot provide such an amount")
+//	}
+//	b.InitialLoan = initialLoan
+//	return nil
+//}
+//
+//func (b *BanksPage) Payment(downPayment float64) error {
+//	if downPayment < (b.InitialLoan * 0.2) {
+//		return errors.New("Very small contribution")
+//	}
+//	b.DownPayment = downPayment
+//	return nil
+//}
+//
+//func (b *BanksPage) Term(desiredTerm float64) error {
+//	if desiredTerm >= 120 {
+//		return errors.New("Too long")
+//	}
+//	b.DesiredTerm = desiredTerm
+//	return nil
+//}
 
-func (b *BanksPage) Payment(downPayment float64) error {
-	if downPayment < (b.InitialLoan * 0.2) {
-		return errors.New("Very small contribution")
-	}
-	b.DownPayment = downPayment
-	return nil
-}
-
-func (b *BanksPage) Term(desiredTerm float64) error {
-	if desiredTerm > 120 {
-		return errors.New("Too long")
-	}
-	b.DesiredTerm = desiredTerm
-	return nil
-}
+//type Calendar struct {
+//	DesiredTerm    float64
+//	InitialLoan    float64
+//	MonthlyPayment float64
+//}
 
 type ConditionsBank struct {
 	InterestRate       float64
@@ -48,7 +58,7 @@ type ConditionsBank struct {
 }
 
 func (c ConditionsBank) Condition() string {
-	return fmt.Sprintf("Interest Rate: %d, Maximum Loan: %d, Minimum Down Payment: %d, Loan Term: %d", c.InterestRate, c.MaximumLoan, c.MinimumDownPayment, c.LoanTerm)
+	return fmt.Sprintf("Interest Rate: %f, Maximum Loan: %f, Minimum Down Payment: %f, Loan Term: %f", c.InterestRate, c.MaximumLoan, c.MinimumDownPayment, c.LoanTerm)
 }
 
 func HomePage(w http.ResponseWriter, r *http.Request) {
@@ -61,16 +71,23 @@ func HomePage(w http.ResponseWriter, r *http.Request) {
 }
 
 func BankPage(w http.ResponseWriter, r *http.Request) {
-	//tmpl, _ := template.ParseFiles("BankPage.html")
+	tmpl, _ := template.ParseFiles("BankPage.html")
+
+	tmpl.Execute(w, nil)
 }
 
 func Save(w http.ResponseWriter, r *http.Request) {
-	interestRate := r.FormValue("interestRate")
 	initialLoan := r.FormValue("initialLoan")
 	downPayment := r.FormValue("downPayment")
-	loanTerm := r.FormValue("loanTerm")
+	desiredTerm := r.FormValue("desiredTerm")
+	interestRate := r.FormValue("interestRate")
 
-	if interestRate == "" || initialLoan == "" || downPayment == "" || loanTerm == "" {
+	InitialLoanF, _ := strconv.ParseFloat(initialLoan, 64)
+	DownPaymentF, _ := strconv.ParseFloat(downPayment, 64)
+	DesiredTermF, _ := strconv.ParseFloat(desiredTerm, 64)
+	InterestRateF, _ := strconv.ParseFloat(interestRate, 64)
+
+	if initialLoan == "" || downPayment == "" || desiredTerm == "" || interestRate == "" {
 		fmt.Fprintf(w, "There are free fields")
 	} else {
 
@@ -89,6 +106,41 @@ func Save(w http.ResponseWriter, r *http.Request) {
 
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 	}
+
+}
+
+func Formula() {
+
+	db, err := sql.Open("sqlite3", "calendar.db")
+	if err != nil {
+		panic(err)
+	}
+
+	defer db.Close()
+
+	rows, err := db.Query("select * from Data")
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	Datas := []Data{}
+
+	for rows.Next() {
+		d := Data{}
+		err := rows.Scan(&d.DesiredTerm, &d.InitialLoan, &d.DownPayment, &d.InterestRate)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+	}
+	for _, d := range Datas {
+		fmt.Println(d.DownPayment, d.DesiredTerm, d.InitialLoan, d.InterestRate)
+		AmountBorrowed := d.InitialLoan - d.DownPayment
+		x := math.Pow((1 + d.InterestRate), d.DesiredTerm)
+		MounthlyPayment := (AmountBorrowed * d.InterestRate * x) / (x - 1)
+		fmt.Println(MounthlyPayment)
+	}
 }
 
 func HandleRequest() {
@@ -100,5 +152,6 @@ func HandleRequest() {
 }
 
 func main() {
+	Formula()
 	HandleRequest()
 }

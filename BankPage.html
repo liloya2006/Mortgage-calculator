@@ -19,14 +19,8 @@
     <div align="center">
         <h1>Welcome to the Bank</h1>
     </div>
-    <form action="/add" method="post">
+    <form action="/save/" method="post">
         <h2>Information</h2>
-        <p>
-            Interest rate : <input type="interestRate" name="interestRate">
-<!--            {{ if .Err.Name }}-->
-<!--        <h5 style="color: red">{{ .Err.Name }}</h5>-->
-<!--        {{ end }}-->
-        </p>
         <p>
             Initial loan : <input type="initialLoan" name="initialLoan">
 <!--            {{ if .Err.Email }}-->
@@ -37,7 +31,10 @@
             Down payment : <input type="downPayment " name="downPayment">
         </p>
         <p>
-            Loan term : <input type="loanTerm" name="loanTerm">
+            Desired Term : <input type="loanTerm" name="desiredTerm">
+        </p>
+        <p>
+            Interest Rate : <input type="loanTerm" name="interestRate">
         </p>
         <p><input type="submit" value="save"></p>
     </form>
